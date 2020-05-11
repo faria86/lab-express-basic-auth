@@ -4,6 +4,12 @@ const createError = require('http-errors');
 const logger = require('morgan');
 const sassMiddleware = require('node-sass-middleware');
 const serveFavicon = require('serve-favicon');
+const mongoose = require('mongoose');
+const deserializeUser = require('./middleware/deserialize-user');
+const expressSession = require('express-session');
+const connectMongo = require('connect-mongo');
+
+const mongoStore = connectMongo(expressSession);
 
 const indexRouter = require('./routes/index');
 
@@ -30,10 +36,28 @@ app.use(
 
 app.use('/', indexRouter);
 
+
 // Catch missing routes and forward to error handler
 app.use((req, res, next) => {
   next(createError(404));
 });
+
+app.use(
+  expressSession({
+    secret: 'abc',
+    resave: true,
+    saveUninitialized: false,
+    cookie: {
+      maxAge: 15 * 24 * 60 * 60 * 1000 // Time that the cookie lives for,
+      // secure: true,
+      // serverOnly: true
+    },
+    store: new mongoStore({
+      mongooseConnection: mongoose.connection,
+      ttl: 60 * 60 // Seconds between connection reset to mongodb
+    })
+  })
+);
 
 // Catch all error handler
 app.use((error, req, res, next) => {
@@ -46,3 +70,5 @@ app.use((error, req, res, next) => {
 });
 
 module.exports = app;
+
+app.listen(3000);
